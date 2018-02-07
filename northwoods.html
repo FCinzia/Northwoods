@@ -1,0 +1,108 @@
+<?php
+
+if (isset($_GET['source'])) {
+     highlight_file($_SERVER['SCRIPT_FILENAME']);
+    exit;
+  }
+?>
+<html>
+<title> assignment 12 </title>
+<body>
+
+<?php
+
+$dbhost = "twinpeaks";
+$dbuser = "cferri";
+$dbpass = "dec1889.cf";
+$dbname = "northwoods";
+
+$database = new mysqli($dbhost, $dbuser, $dbpass, $dbname);
+
+
+if ($database->connect_error) {
+    die('Error : ('. $database->connect_errno .') '. $database->connect_error);
+}
+
+$results = $database->query("SELECT s_first, s_mi, s_last, f_first, f_mi, f_last, f_phone 
+                           FROM student, faculty
+                           WHERE student.f_id = faculty.f_id
+                           ORDER BY faculty.f_last");
+
+if (!$results){
+    die ($database->error);
+}
+
+print '<table border="1" style="font-family: calibri;">';
+print '<tr><th>Student</th><th>Faculty Advisor</th><th>Advisor Phone Number</th></tr>';
+while ($row = $results->fetch_object()) {
+    print '<tr>';
+    print '<td>'.$row->s_first. ' ' .$row->s_mi. ' ' .$row->s_last.'</td>';
+    print '<td>'.$row->f_first. ' ' .$row->f_mi. ' ' .$row->f_last.'</td>';
+    print '<td>'.preg_replace("/(\d{3})(\d{3})(\d{4})/", "($1) $2-$3", $row->f_phone).'</td>';
+    print '</tr>';
+}  
+
+print '</table>';
+?>
+
+<form method="post" action="<?=$_SERVER['SCRIPT_URL']?>">;
+
+<?php
+$terms = $database->query("SELECT *
+                                        FROM term");
+
+if (!$terms){
+    die ($database->error);
+}
+
+print '<h2>Select Term</h2>';
+print '<select id="term" name="term">';
+print '<option value="">Please Select</option>';
+while ($row = $terms->fetch_array()) {
+  print '<option value="'.$row["term_id"].'">' . $row["term_desc"] .'</option>';
+}  
+print '</select>';
+print '<br/><input type="submit" name="update" value="Submit">';
+print '</form>';
+
+
+if(isset($_POST['term']) && !is_null($_POST['term'])){
+
+  $selectedTerm = $_POST['term'];
+
+  $term_courses = $database->query("SELECT course_name, sec_num, f_last, bldg_code, room, c_sec_day, c_sec_time 
+                                    FROM course_section, courses, faculty, location 
+                                    WHERE term_id = $selectedTerm and courses.course_id = course_section.course_id and 
+                                          course_section.f_id = faculty.f_id and course_section.loc_id = location.loc_id 
+                                    ORDER BY course_name, c_sec_id");
+  if (!$term_courses){
+    die ($database->error);
+  }
+
+  if($term_courses->num_rows > 0){
+    print '<table border="1" style="font-family: calibri;">';
+    print '<tr><th>Course</th><th>Section</th><th>Instructor</th><th>Location</th><th>Days</th>';
+    print '<th>Start Time</th></tr>';
+    while ($row = $term_courses->fetch_array()) {
+      print '<tr>';
+      print '<td>'.$row["course_name"].'</td>';
+      print '<td>'.$row["sec_num"].'</td>';
+      print '<td>'.$row["f_last"].'</td>';
+      print '<td>'.$row["bldg_code"]. ' ' .$row["room"].'</td>';
+      print '<td>'.$row["c_sec_day"].'</td>';
+      print '<td>'.$row["c_sec_time"].'</td>';
+      print '</tr>';
+    }  
+    print '</table>';
+  } else {
+    print ("There are no courses available.");
+  }
+
+}
+
+
+$database->close();
+?>
+
+</body>
+</html>
